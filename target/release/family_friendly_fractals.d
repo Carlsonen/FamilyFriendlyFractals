@@ -1,0 +1,1 @@
+/Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/target/release/family_friendly_fractals: /Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/src/configstructs.rs /Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/src/main.rs
