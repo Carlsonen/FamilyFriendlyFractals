@@ -57,7 +57,6 @@ fn randomish_fractal(name: &String, config: &Config) {
         seed_coordinate = Complex::new(x, y);
         let i = mandel(seed_coordinate, 100);
         if i >= config.shape.min && i <= config.shape.max {
-            println!("{}", i);
             break;
         }
     }
