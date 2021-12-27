@@ -1,3 +1,5 @@
 # FamilyFriendlyFractals
-
-idk how to push to main so go to master branch xd
+Generates random Julia sets from a seed.
+Changable generation style.
+I dont know how to use git so code might be fucked sometimes.
+I dont know rust either so code might be fucked.
