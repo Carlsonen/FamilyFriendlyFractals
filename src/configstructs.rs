@@ -49,8 +49,8 @@ impl Shape {
     }
     pub fn default() -> Self {
         Shape {
-            min: 10,
-            max: 25,
+            min: 20,
+            max: 70,
             iterations: 10000,
         }
     }
@@ -63,8 +63,8 @@ impl Shape {
     }
     pub fn simple() -> Self {
         Shape {
-            min: 5,
-            max: 10,
+            min: 3,
+            max: 15,
             iterations: 10000,
         }
     }

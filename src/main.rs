@@ -1,5 +1,8 @@
 extern crate image;
 extern crate num;
+use std::path::Path;
+use std::fs::File;
+use std::io::prelude::*;
 use num::complex::Complex;
 use rand::prelude::*;
 use rand::Rng;
@@ -12,13 +15,15 @@ use configstructs::Coloring;
 use configstructs::Config;
 use configstructs::Screen;
 use configstructs::Shape;
+use dialog::DialogBox;
 
 fn main() {
     let config = Config::new(
         Coloring::colorful(),            // try the presets or experiment with ""::new"
-        Shape::default(),                // how messy the fractal is basically
-        Screen::new(1920 * 2, 1080 * 2), // fractal height is always same
+        Shape::messy(),                // how messy the fractal is basically
+        Screen::new(140 * 2, 140 * 2), // fractal height is always same
     );
+    
     loop {
         println!("input name: ");
         let name: String = read!();
@@ -82,8 +87,9 @@ fn randomish_fractal(name: &String, config: &Config) {
             img.put_pixel(x as u32, y as u32, image::Rgb(color));
         }
     }
-    let mut path = format!("{}{}", name, ".png");
-    img.save(path).unwrap();
+    let path = format!("{}{}", name, ".png");
+    let os_path = Path::new(&path);
+    img.save(os_path).unwrap();
 }
 fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f64 {
     let mut z = coordinate;
