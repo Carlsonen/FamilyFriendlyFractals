@@ -23,7 +23,7 @@ impl Coloring {
     pub fn gray() -> Self {
         Coloring { min: 2.0, max: 2.2 }
     }
-    pub fn colorful() -> Self {
+    pub fn default() -> Self {
         Coloring { min: 0.0, max: 2.0 }
     }
     pub fn dark() -> Self {

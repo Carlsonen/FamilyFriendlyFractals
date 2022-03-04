@@ -1,8 +1,6 @@
 extern crate image;
 extern crate num;
 use std::path::Path;
-use std::fs::File;
-use std::io::prelude::*;
 use num::complex::Complex;
 use rand::prelude::*;
 use rand::Rng;
@@ -10,29 +8,92 @@ use rand_pcg::Pcg64;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use text_io::read;
+
 mod configstructs;
 use configstructs::Coloring;
 use configstructs::Config;
 use configstructs::Screen;
 use configstructs::Shape;
-use dialog::DialogBox;
+
+fn print_available_commands() {
+    println!("==============================================================");
+    println!("available commands:");
+    println!("stop                             | stops the program");
+    println!("make <name>                      | generates a fractal");
+    println!("color <default/dark/gray/random> | changes the coloring method");
+    println!("shape <default/simple/messy>     | changes how messy");
+    println!("res <width> <height>             | changes resolution");
+    println!("==============================================================");
+}
 
 fn main() {
-    let config = Config::new(
-        Coloring::colorful(),            // try the presets or experiment with ""::new"
-        Shape::messy(),                // how messy the fractal is basically
-        Screen::new(140 * 2, 140 * 2), // fractal height is always same
+    let mut config = Config::new(
+        Coloring::default(),           // try the presets or experiment with ""::new"
+        Shape::default(),                 // how messy the fractal is basically
+        Screen::new(1080, 1080),  // fractal height is always same
     );
-    
+    print_available_commands();
     loop {
-        println!("input name: ");
-        let name: String = read!();
-        if name == "stop" {
+        println!();
+        //println!("input command: ");
+        let command: String = read!();
+        if command == "stop" {
             println!("program stopped");
             break;
         }
-        randomish_fractal(&name, &config);
-        println!("Fractal \"{}\" saved!", name);
+        else if command == "make" {
+            //println!("input name: ");
+            let name: String = read!();
+            randomish_fractal(&name, &config);
+            println!("=> Fractal \"{}\" saved!", name);
+        }
+        else if command == "color" {
+            //println!("input color: ");
+            let color: String = read!();
+            if color == "dark" {
+                config.coloring = Coloring::dark();
+                println!("=> color set to dark")
+            }
+            else if color == "gray" {
+                config.coloring = Coloring::gray();
+                println!("=> color set to gray")
+            }
+            else if color == "random" {
+                config.coloring = Coloring::random();
+                println!("=> color set to random")
+            }
+            else {
+                config.coloring = Coloring::default();
+                println!("=> color set to default")
+            }
+        }
+        else if command == "shape" {
+            //println!("input shape: ");
+            let shape: String = read!();
+            if shape == "simple" {
+                config.shape = Shape::simple();
+                println!("=> shape set to simple")
+            }
+            else if shape == "messy" {
+                config.shape = Shape::messy();
+                println!("=> shape set to messy")
+            }
+            else {
+                config.shape = Shape::default();
+                println!("=> shape set to default");
+            }
+        }
+        else if command == "res" {
+            let width: i32 = read!();
+            let height: i32 = read!();
+            config.screen = Screen::new(width, height);
+            println!("=> screen set to {}x{}", width, height);
+        }
+        else {
+            print_available_commands();
+        }
+
+        
     }
 }
 

@@ -1,1 +1,1 @@
-/Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/target/release/family_friendly_fractals: /Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/src/configstructs.rs /Users/oscarcarlsson/coding/rust/FamilyFriendlyFractals/src/main.rs
+C:\__SKIT__\Rust\rust\FamilyFriendlyFractals\target\release\family_friendly_fractals.exe: C:\__SKIT__\Rust\rust\FamilyFriendlyFractals\src\configstructs.rs C:\__SKIT__\Rust\rust\FamilyFriendlyFractals\src\main.rs
