@@ -50,13 +50,13 @@ impl Shape {
     pub fn default() -> Self {
         Shape {
             min: 20,
-            max: 70,
+            max: 20,
             iterations: 10000,
         }
     }
     pub fn messy() -> Self {
         Shape {
-            min: 69,
+            min: 90,
             max: 99,
             iterations: 10000,
         }

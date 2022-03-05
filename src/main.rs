@@ -16,21 +16,23 @@ use configstructs::Screen;
 use configstructs::Shape;
 
 fn print_available_commands() {
-    println!("==============================================================");
+    println!("========================================================");
     println!("available commands:");
-    println!("stop                             | stops the program");
     println!("make <name>                      | generates a fractal");
-    println!("color <default/dark/gray/random> | changes the coloring method");
+    println!("color <default/dark/gray/random> | changes the coloring");
     println!("shape <default/simple/messy>     | changes how messy");
     println!("res <width> <height>             | changes resolution");
-    println!("==============================================================");
+    println!("r                                | makes a random fractal");
+    println!("stop                             | stops the program");
+    println!("========================================================");
+
 }
 
 fn main() {
     let mut config = Config::new(
-        Coloring::default(),           // try the presets or experiment with ""::new"
-        Shape::default(),                 // how messy the fractal is basically
-        Screen::new(1080, 1080),  // fractal height is always same
+        Coloring::default(),            // try the presets or experiment with ""::new"
+        Shape::default(),               // how messy the fractal is basically
+        Screen::default(),              // fractal height is always same
     );
     print_available_commands();
     loop {
@@ -44,6 +46,11 @@ fn main() {
         else if command == "make" {
             //println!("input name: ");
             let name: String = read!();
+            randomish_fractal(&name, &config);
+            println!("=> Fractal \"{}\" saved!", name);
+        }
+        else if command == "r" {
+            let name: String = "random".to_string();
             randomish_fractal(&name, &config);
             println!("=> Fractal \"{}\" saved!", name);
         }
