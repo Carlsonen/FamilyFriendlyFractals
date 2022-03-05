@@ -2,8 +2,8 @@ extern crate image;
 extern crate num;
 use std::path::Path;
 use num::complex::Complex;
+use rand::{distributions::Alphanumeric, Rng};
 use rand::prelude::*;
-use rand::Rng;
 use rand_pcg::Pcg64;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -46,13 +46,18 @@ fn main() {
         else if command == "make" {
             //println!("input name: ");
             let name: String = read!();
-            randomish_fractal(&name, &config);
+            randomish_fractal(&name, &name, &config);
             println!("=> Fractal \"{}\" saved!", name);
         }
         else if command == "r" {
             let name: String = "random".to_string();
-            randomish_fractal(&name, &config);
-            println!("=> Fractal \"{}\" saved!", name);
+            let seed: String = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(5)
+                .map(char::from)
+                .collect();
+            randomish_fractal(&name, &seed, &config);
+            println!("=> Fractal \"{}\" saved!", seed);
         }
         else if command == "color" {
             //println!("input color: ");
@@ -104,14 +109,12 @@ fn main() {
     }
 }
 
-fn randomish_fractal(name: &String, config: &Config) {
+fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let mut hasher = DefaultHasher::new();
-    name.hash(&mut hasher);
+    seed.hash(&mut hasher);
     let hash_val = hasher.finish();
     let mut rng = Pcg64::seed_from_u64(hash_val);
-    if name == "random" {
-        rng = Pcg64::seed_from_u64(rand::random());
-    }
+    
 
     let width = config.screen.width;
     let height = config.screen.height;
@@ -125,8 +128,8 @@ fn randomish_fractal(name: &String, config: &Config) {
     let mut y: f64;
     let mut seed_coordinate: Complex<f64>;
     loop {
-        x = rng.gen_range(-2.5..2.5);
-        y = rng.gen_range(-2.5..2.5);
+        x = rng.gen_range(-1.0..0.5);
+        y = rng.gen_range(-1.0..1.0);
         seed_coordinate = Complex::new(x, y);
         let i = mandel(seed_coordinate, 100);
         if i >= config.shape.min && i <= config.shape.max {
