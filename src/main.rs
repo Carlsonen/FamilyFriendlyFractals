@@ -1,5 +1,6 @@
 extern crate image;
 extern crate num;
+use image::io::Reader as ImageReader;
 use std::path::Path;
 use num::complex::Complex;
 use rand::{distributions::Alphanumeric, Rng};
@@ -20,9 +21,15 @@ fn print_available_commands() {
     println!("available commands:");
     println!("make <name>                      | generates a fractal");
     println!("color <default/dark/gray/random> | changes the coloring");
+    println!("r                                | makes a random fractal");
+    println!();
     println!("shape <default/simple/messy>     | changes how messy");
     println!("res <width> <height>             | changes resolution");
-    println!("r                                | makes a random fractal");
+    println!();
+    println!("orbit set <path>                 | name sample image in ./sample/");
+    println!("orbit make <name>                | fractal from image");
+    println!("orbit r                          | makes random from image");
+    println!();
     println!("stop                             | stops the program");
     println!("========================================================");
 
@@ -35,6 +42,7 @@ fn main() {
         Screen::default(),              // fractal height is always same
     );
     print_available_commands();
+    let mut orbit_path: String = "bear.ico".to_string();
     loop {
         println!();
         //println!("input command: ");
@@ -101,6 +109,32 @@ fn main() {
             config.screen = Screen::new(width, height);
             println!("=> screen set to {}x{}", width, height);
         }
+        else if command == "orbit" {
+            let func: String = read!();
+            if func == "make" {
+                let name: String = read!();
+                julia_orbit_trap(&name, &name, &config, &orbit_path);
+                println!("=> Fractal \"{}\" saved!", name);
+                
+            }
+            else if func == "r" {
+                let name: String = "random".to_string();
+                let seed: String = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(5)
+                .map(char::from)
+                .collect();
+                julia_orbit_trap(&name, &seed, &config, &orbit_path);
+                println!("=> Fractal \"{}\" saved!", seed);
+            }
+            else if func == "set" {
+                orbit_path = read!();
+            }
+            else {
+                print_available_commands();
+            }
+            
+        }
         else {
             print_available_commands();
         }
@@ -120,13 +154,12 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let height = config.screen.height;
     let max_iterations = config.shape.iterations;
 
-    let rmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
-    let gmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
-    let bmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    
 
     let mut x: f64;
     let mut y: f64;
     let mut seed_coordinate: Complex<f64>;
+
     loop {
         x = rng.gen_range(-1.0..0.5);
         y = rng.gen_range(-1.0..1.0);
@@ -137,9 +170,11 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
         }
     }
 
-    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage};
+    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open};
     let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
-
+    let rmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    let gmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    let bmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
     let zoom = 3.8;
     let aspect_ratio = width as f64 / height as f64;
     for x in 0..width {
@@ -147,14 +182,17 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
             let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
             let co_y = zoom * (y as f64 / height as f64 - 0.5);
             let coordinate = Complex::new(co_x, co_y);
-            let iterations = julia(coordinate, max_iterations, seed_coordinate) / 10.0;
+            let mut red: f64 = 0.0;
+            let mut green: f64 = 0.0;
+            let mut blue: f64 = 0.0;
 
-            let red = (iterations * rmul).sin() * 255.0;
-            let green = (iterations * gmul).sin() * 255.0;
-            let blue = (iterations * bmul).sin() * 255.0;
-
-            let color = [red as u8, green as u8, blue as u8];
-
+            
+            let iterations = julia(coordinate, max_iterations, seed_coordinate);
+            red = (0.1 * iterations * rmul).sin() * 255.0;
+            green = (0.1 * iterations * gmul).sin() * 255.0;
+            blue = (0.1 * iterations * bmul).sin() * 255.0;
+            let mut color = [red as u8, green as u8, blue as u8];
+        
             img.put_pixel(x as u32, y as u32, image::Rgb(color));
         }
     }
@@ -180,6 +218,66 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
         return iteration as f64 + 1.0 - (z.norm().ln().ln() * onedivbylntwo) as f64;
     }
     return iteration as f64;
+}
+
+fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String) {
+    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open};
+
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    let hash_val = hasher.finish();
+    let mut rng = Pcg64::seed_from_u64(hash_val);
+
+    let width = config.screen.width;
+    let height = config.screen.height;
+
+    let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
+    let sample_pic = open(format!("sample/{}", path)).unwrap().into_rgb8();
+    
+    let zoom = 3.8;
+    let aspect_ratio = width as f64 / height as f64;
+
+    let mut c;
+    let mut x;
+    let mut y;
+    loop {
+        x = rng.gen_range(-1.0..0.5);
+        y = rng.gen_range(-1.0..1.0);
+        c = Complex::new(x, y);
+        let i = mandel(c, 100);
+        if i >= config.shape.min && i <= config.shape.max {
+            break;
+        }
+    }
+
+    for x in 0..width {
+        for y in 0..height {
+            let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
+            let co_y = zoom * (y as f64 / height as f64 - 0.5);
+
+            let mut z = Complex::new(co_x, co_y);
+            
+            let s = Complex::new(0.15, 0.4);
+            let mut pixel = image::Rgb([0,0,0]);
+            for i in 0..1000 {
+                if z.norm_sqr() > 4.0 {break;}
+                z = z*z+c;
+                let mut p = 0.4*(z+s);
+                if p.re > 0.0 && p.im > 0.0 && p.re < 1.0 && p.im < 1.0 {
+                    p.re *= aspect_ratio * (sample_pic.width()-1) as f64;
+                    p.im *= (sample_pic.height()-1) as f64;
+                    pixel = *sample_pic.get_pixel((p.re ) as u32, p.im as u32);
+                }
+                
+                if pixel != image::Rgb([0,0,0]) {break;}
+            }
+            img.put_pixel(x as u32, y as u32, pixel);
+        }
+    }
+    let path = format!("{}{}", name, ".png");
+    let os_path = Path::new(&path);
+    img.save(os_path).unwrap();
+    
 }
 fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
     let mut z = Complex::new(0.0, 0.0);
