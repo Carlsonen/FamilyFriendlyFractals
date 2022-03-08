@@ -264,7 +264,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
                 z = z*z+c;
                 let mut p = 0.4*(z+s);
                 if p.re > 0.0 && p.im > 0.0 && p.re < 1.0 && p.im < 1.0 {
-                    p.re *= aspect_ratio * (sample_pic.width()-1) as f64;
+                    p.re *= (sample_pic.width()-1) as f64;
                     p.im *= (sample_pic.height()-1) as f64;
                     pixel = *sample_pic.get_pixel((p.re ) as u32, p.im as u32);
                 }
