@@ -1,5 +1,4 @@
 # generated pictures
-*.png
 # compiled build
 target/
 Cargo.lock

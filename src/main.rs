@@ -257,7 +257,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
 
             let mut z = Complex::new(co_x, co_y);
             
-            let s = Complex::new(0.15, 0.4);
+            let s = Complex::new(0.0, 0.0);
             let mut pixel = image::Rgba([0,0,0,0]);
             for i in 0..1000 {
                 if z.norm_sqr() > 4.0 {break;}
