@@ -221,7 +221,7 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
 }
 
 fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String) {
-    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open};
+    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open, RgbaImage};
 
     let mut hasher = DefaultHasher::new();
     seed.hash(&mut hasher);
@@ -231,8 +231,8 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
     let width = config.screen.width;
     let height = config.screen.height;
 
-    let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
-    let sample_pic = open(format!("sample/{}", path)).unwrap().into_rgb8();
+    let mut img: RgbaImage = RgbaImage::new(width as u32, height as u32);
+    let sample_pic = open(format!("sample/{}", path)).unwrap().into_rgba8();
     
     let zoom = 3.8;
     let aspect_ratio = width as f64 / height as f64;
@@ -258,7 +258,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
             let mut z = Complex::new(co_x, co_y);
             
             let s = Complex::new(0.15, 0.4);
-            let mut pixel = image::Rgb([0,0,0]);
+            let mut pixel = image::Rgba([0,0,0,0]);
             for i in 0..1000 {
                 if z.norm_sqr() > 4.0 {break;}
                 z = z*z+c;
@@ -269,8 +269,9 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
                     pixel = *sample_pic.get_pixel((p.re ) as u32, p.im as u32);
                 }
                 
-                if pixel != image::Rgb([0,0,0]) {break;}
+                if pixel[3] != 0 {break;}
             }
+            if pixel[3] == 0 {pixel = image::Rgba([0,0,16,255]);}
             img.put_pixel(x as u32, y as u32, pixel);
         }
     }
