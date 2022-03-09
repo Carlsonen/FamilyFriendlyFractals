@@ -35,36 +35,19 @@ impl Coloring {
 }
 
 pub struct Shape {
-    pub min: i32,
-    pub max: i32,
+    pub messiness_factor: i32,
     pub iterations: i32,
 }
 impl Shape {
-    pub fn new(min: i32, max: i32, iterations: i32) -> Self {
+    pub fn new(messiness_factor: i32, iterations: i32) -> Self {
         Shape {
-            min: min,
-            max: max,
+            messiness_factor: messiness_factor,
             iterations: iterations,
         }
     }
     pub fn default() -> Self {
         Shape {
-            min: 20,
-            max: 20,
-            iterations: 10000,
-        }
-    }
-    pub fn messy() -> Self {
-        Shape {
-            min: 90,
-            max: 99,
-            iterations: 10000,
-        }
-    }
-    pub fn simple() -> Self {
-        Shape {
-            min: 3,
-            max: 15,
+            messiness_factor: 30,
             iterations: 10000,
         }
     }

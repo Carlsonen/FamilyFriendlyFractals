@@ -23,7 +23,7 @@ fn print_available_commands() {
     println!("color <default/dark/gray/random> | changes the coloring");
     println!("r                                | makes a random fractal");
     println!();
-    println!("shape <default/simple/messy>     | changes how messy");
+    println!("shape <number>                   | changes how messy (1-99, default 30)");
     println!("res <width> <height>             | changes resolution");
     println!();
     println!("orbit set <path>                 | name sample image in ./sample/");
@@ -89,19 +89,11 @@ fn main() {
         }
         else if command == "shape" {
             //println!("input shape: ");
-            let shape: String = read!();
-            if shape == "simple" {
-                config.shape = Shape::simple();
-                println!("=> shape set to simple")
-            }
-            else if shape == "messy" {
-                config.shape = Shape::messy();
-                println!("=> shape set to messy")
-            }
-            else {
-                config.shape = Shape::default();
-                println!("=> shape set to default");
-            }
+            let mut messi: i32 = read!();
+            messi = i32::max(messi, 1);
+            messi = i32::min(messi, 99);
+            config.shape.messiness_factor = messi;
+            println!("=> messiness set to {}", messi);
         }
         else if command == "res" {
             let width: i32 = read!();
@@ -155,20 +147,8 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let max_iterations = config.shape.iterations;
 
     
-
-    let mut x: f64;
-    let mut y: f64;
-    let mut seed_coordinate: Complex<f64>;
-
-    loop {
-        x = rng.gen_range(-1.0..0.5);
-        y = rng.gen_range(-1.0..1.0);
-        seed_coordinate = Complex::new(x, y);
-        let i = mandel(seed_coordinate, 100);
-        if i >= config.shape.min && i <= config.shape.max {
-            break;
-        }
-    }
+    let angle: f64 = rng.gen_range(-3.14..3.14);
+    let seed_coordinate = find_good_julia(angle, config.shape.messiness_factor);
 
     use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open};
     let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
@@ -237,19 +217,9 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
     let zoom = 3.8;
     let aspect_ratio = width as f64 / height as f64;
 
-    let mut c;
-    let mut x;
-    let mut y;
-    loop {
-        x = rng.gen_range(-1.0..0.5);
-        y = rng.gen_range(-1.0..1.0);
-        c = Complex::new(x, y);
-        let i = mandel(c, 100);
-        if i >= config.shape.min && i <= config.shape.max {
-            break;
-        }
-    }
-
+    let angle: f64 = rng.gen_range(-3.14..3.14);
+    let c = find_good_julia(angle, config.shape.messiness_factor);
+    
     for x in 0..width {
         for y in 0..height {
             let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
@@ -280,6 +250,21 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
     img.save(os_path).unwrap();
     
 }
+fn find_good_julia(angle: f64, messi: i32) -> Complex<f64>{
+    let x = angle.cos() * 2.0;
+    let y = angle.sin() * 2.0;
+    let mut coord = Complex::new(x, y);
+    let mut step = coord / 2.0;
+    let mut sign = -1.0;
+    loop {
+        coord += step * sign;
+        let i = mandel(coord, 100);
+        if i < messi {sign = -1.0;}
+        else if i > messi {sign = 1.0;}
+        else {return coord;}
+        step *= 0.51;
+    }
+}
 fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
     let mut z = Complex::new(0.0, 0.0);
     let c = coordinate;
@@ -290,3 +275,4 @@ fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
     }
     return iteration;
 }
+
