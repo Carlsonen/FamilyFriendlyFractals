@@ -1,13 +1,15 @@
 extern crate image;
+use image::{ImageBuffer, RgbImage, RgbaImage, open};
+
 extern crate num;
-use image::io::Reader as ImageReader;
-use std::path::Path;
 use num::complex::Complex;
+
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use rand::{distributions::Alphanumeric, Rng};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+
 use text_io::read;
 
 mod configstructs;
@@ -15,6 +17,8 @@ use configstructs::Coloring;
 use configstructs::Config;
 use configstructs::Screen;
 use configstructs::Shape;
+
+use std::path::Path;
 
 fn print_available_commands() {
     println!("========================================================");
@@ -32,7 +36,6 @@ fn print_available_commands() {
     println!();
     println!("stop                             | stops the program");
     println!("========================================================");
-
 }
 
 fn main() {
@@ -41,8 +44,8 @@ fn main() {
         Shape::default(),               // how messy the fractal is basically
         Screen::default(),              // fractal height is always same
     );
-    print_available_commands();
     let mut orbit_path: String = "bear.ico".to_string();
+    print_available_commands();
     loop {
         println!();
         //println!("input command: ");
@@ -96,8 +99,12 @@ fn main() {
             println!("=> messiness set to {}", messi);
         }
         else if command == "res" {
-            let width: i32 = read!();
-            let height: i32 = read!();
+            let mut width: i32 = read!();
+            let mut height: i32 = read!();
+            width = i32::max(width, 1);
+            height = i32::max(height, 1);
+            width = i32::min(width, 9999);
+            height = i32::min(height, 9999);
             config.screen = Screen::new(width, height);
             println!("=> screen set to {}x{}", width, height);
         }
@@ -120,18 +127,23 @@ fn main() {
                 println!("=> Fractal \"{}\" saved!", seed);
             }
             else if func == "set" {
-                orbit_path = read!();
+                let pic: String = read!();
+                let path = format!("sample/{}", pic);
+                if Path::new(&path).exists() {
+                    println!("=> Sample picture set to {}", pic);
+                    orbit_path = pic;
+                }
+                else {
+                    println!("=> the file \"{}\" does not exist", path);
+                }
             }
             else {
-                print_available_commands();
+                println!("=> invalid command");
             }
-            
         }
         else {
             print_available_commands();
         }
-
-        
     }
 }
 
@@ -141,20 +153,18 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let hash_val = hasher.finish();
     let mut rng = Pcg64::seed_from_u64(hash_val);
     
-
     let width = config.screen.width;
     let height = config.screen.height;
     let max_iterations = config.shape.iterations;
-
     
     let angle: f64 = rng.gen_range(-3.14..3.14);
     let seed_coordinate = find_good_julia(angle, config.shape.messiness_factor);
-
-    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open};
-    let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
+    
     let rmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
     let gmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
     let bmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+
+    let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
     let zoom = 3.8;
     let aspect_ratio = width as f64 / height as f64;
     for x in 0..width {
@@ -162,29 +172,24 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
             let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
             let co_y = zoom * (y as f64 / height as f64 - 0.5);
             let coordinate = Complex::new(co_x, co_y);
-            let mut red: f64 = 0.0;
-            let mut green: f64 = 0.0;
-            let mut blue: f64 = 0.0;
-
             
             let iterations = julia(coordinate, max_iterations, seed_coordinate);
-            red = (0.1 * iterations * rmul).sin() * 255.0;
-            green = (0.1 * iterations * gmul).sin() * 255.0;
-            blue = (0.1 * iterations * bmul).sin() * 255.0;
-            let mut color = [red as u8, green as u8, blue as u8];
+            let red = (0.1 * iterations * rmul).sin() * 255.0;
+            let green = (0.1 * iterations * gmul).sin() * 255.0;
+            let blue = (0.1 * iterations * bmul).sin() * 255.0;
+            let color = [red as u8, green as u8, blue as u8];
         
             img.put_pixel(x as u32, y as u32, image::Rgb(color));
         }
     }
-    let path = format!("{}{}", name, ".png");
-    let os_path = Path::new(&path);
-    img.save(os_path).unwrap();
+    let path = format!("{}.png", name);
+    img.save(path).unwrap();
 }
 fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f64 {
     let mut z = coordinate;
     let c = seed;
     let mut iteration = 0;
-    while iteration < max_iterations && z.norm_sqr() <= 4.0 {
+    while iteration < max_iterations && z.norm_sqr() < 4.0 {
         z = z * z + c;
         iteration += 1;
     }
@@ -201,8 +206,6 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
 }
 
 fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String) {
-    use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, open, RgbaImage};
-
     let mut hasher = DefaultHasher::new();
     seed.hash(&mut hasher);
     let hash_val = hasher.finish();
@@ -238,16 +241,14 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
                     p.im *= (sample_pic.height()-1) as f64;
                     pixel = *sample_pic.get_pixel((p.re ) as u32, p.im as u32);
                 }
-                
                 if pixel[3] != 0 {break;}
             }
             if pixel[3] == 0 {pixel = image::Rgba([0,0,16,255]);}
             img.put_pixel(x as u32, y as u32, pixel);
         }
     }
-    let path = format!("{}{}", name, ".png");
-    let os_path = Path::new(&path);
-    img.save(os_path).unwrap();
+    let path = format!("{}.png", name);
+    img.save(path).unwrap();
     
 }
 fn find_good_julia(angle: f64, messi: i32) -> Complex<f64>{
@@ -270,7 +271,7 @@ fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
     let c = coordinate;
     let mut iteration = 0;
     while (iteration < max_iterations) & (z.norm_sqr() <= 4.0) {
-        z = z.powu(2) + c;
+        z = z * z + c;
         iteration += 1;
     }
     return iteration;
