@@ -54,11 +54,11 @@ impl Shape {
 }
 
 pub struct Screen {
-    pub width: i32,
-    pub height: i32,
+    pub width: u32,
+    pub height: u32,
 }
 impl Screen {
-    pub fn new(width: i32, height: i32) -> Self {
+    pub fn new(width: u32, height: u32) -> Self {
         Screen {
             width: width,
             height: height,

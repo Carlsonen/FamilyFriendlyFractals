@@ -99,12 +99,12 @@ fn main() {
             println!("=> messiness set to {}", messi);
         }
         else if command == "res" {
-            let mut width: i32 = read!();
-            let mut height: i32 = read!();
-            width = i32::max(width, 1);
-            height = i32::max(height, 1);
-            width = i32::min(width, 9999);
-            height = i32::min(height, 9999);
+            let mut width: u32 = read!();
+            let mut height: u32 = read!();
+            width = u32::max(width, 1);
+            height = u32::max(height, 1);
+            width = u32::min(width, 9999);
+            height = u32::min(height, 9999);
             config.screen = Screen::new(width, height);
             println!("=> screen set to {}x{}", width, height);
         }
@@ -153,8 +153,8 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let hash_val = hasher.finish();
     let mut rng = Pcg64::seed_from_u64(hash_val);
     
-    let width = config.screen.width;
-    let height = config.screen.height;
+    let width: u32 = config.screen.width;
+    let height: u32 = config.screen.height;
     let max_iterations = config.shape.iterations;
     
     let angle: f64 = rng.gen_range(-3.14..3.14);
@@ -167,7 +167,7 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
     let zoom = 3.8;
     let aspect_ratio = width as f64 / height as f64;
-    for x in 0..width {
+    for x in 0..(width as f32 /2.0).ceil() as u32 {
         for y in 0..height {
             let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
             let co_y = zoom * (y as f64 / height as f64 - 0.5);
@@ -180,8 +180,10 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
             let color = [red as u8, green as u8, blue as u8];
         
             img.put_pixel(x as u32, y as u32, image::Rgb(color));
+            img.put_pixel(width - x - 1, height - y - 1, image::Rgb(color));
         }
     }
+    
     let path = format!("{}.png", name);
     img.save(path).unwrap();
 }
@@ -223,7 +225,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
     let angle: f64 = rng.gen_range(-3.14..3.14);
     let c = find_good_julia(angle, config.shape.messiness_factor);
     
-    for x in 0..width {
+    for x in 0..(width as f32 /2.0).ceil() as u32 {
         for y in 0..height {
             let co_x = aspect_ratio * zoom * (x as f64 / width as f64 - 0.5);
             let co_y = zoom * (y as f64 / height as f64 - 0.5);
@@ -245,6 +247,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
             }
             if pixel[3] == 0 {pixel = image::Rgba([0,0,16,255]);}
             img.put_pixel(x as u32, y as u32, pixel);
+            img.put_pixel(width - x - 1, height - y - 1, pixel);
         }
     }
     let path = format!("{}.png", name);
