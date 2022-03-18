@@ -23,16 +23,19 @@ use std::path::Path;
 fn print_available_commands() {
     println!("========================================================");
     println!("available commands:");
-    println!("make <name>                      | generates a fractal");
+    println!("make <name>                      | generates fractal");
     println!("color <default/dark/gray/random> | changes the coloring");
-    println!("r                                | makes a random fractal");
+    println!("r                                | generates random fractal");
     println!();
     println!("shape <number>                   | changes how messy (1-99, default 30)");
     println!("res <width> <height>             | changes resolution");
     println!();
     println!("orbit set <path>                 | name sample image in ./sample/");
-    println!("orbit make <name>                | fractal from image");
-    println!("orbit r                          | makes random from image");
+    println!("orbit make <name>                | generates fractal from image");
+    println!("orbit r                          | generates random from image");
+    println!();
+    println!("gpu make <name>                  | generates fractal on GPU");
+    println!("gpu r                            | generates random on GPU");
     println!();
     println!("stop                             | stops the program");
     println!("========================================================");
@@ -141,6 +144,27 @@ fn main() {
                 println!("=> invalid command");
             }
         }
+        else if command == "gpu" {
+            let func: String = read!();
+            if func == "make" {
+                let name: String = read!();
+                opencl_julia(&name, &name, &config);
+                println!("=> Fractal \"{}\" saved!", name);
+            }
+            else if func == "r" {
+                let name: String = "random".to_string();
+                let seed: String = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(5)
+                .map(char::from)
+                .collect();
+                opencl_julia(&name, &seed, &config);
+                println!("=> Fractal \"{}\" saved!", seed);
+            }
+            else {
+                println!("=> invalid command");
+            }
+        }
         else {
             print_available_commands();
         }
@@ -196,7 +220,7 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
         iteration += 1;
     }
     if iteration < max_iterations {
-        for i in 0..3 {
+        for _ in 0..3 {
             z = z * z + c;
             iteration += 1;
         }
@@ -206,7 +230,6 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
     }
     return iteration as f64;
 }
-
 fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String) {
     let mut hasher = DefaultHasher::new();
     seed.hash(&mut hasher);
@@ -234,7 +257,7 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
             
             let s = Complex::new(0.0, 0.0);
             let mut pixel = image::Rgba([0,0,0,0]);
-            for i in 0..1000 {
+            for _ in 0..1000 {
                 if z.norm_sqr() > 4.0 {break;}
                 z = z*z+c;
                 let mut p = 0.4*(z+s);
@@ -278,5 +301,129 @@ fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
         iteration += 1;
     }
     return iteration;
+}
+
+
+
+fn opencl_julia(name: &String, seed: &String, config: &Config) {
+    let mut hasher = DefaultHasher::new();
+    seed.hash(&mut hasher);
+    let hash_val = hasher.finish();
+    let mut rng = Pcg64::seed_from_u64(hash_val);
+    let angle: f64 = rng.gen_range(-3.14..3.14);
+    let seed_coordinate = find_good_julia(angle, config.shape.messiness_factor);
+    let rmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    let gmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    let bmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
+    let w = config.screen.width;
+    let h = config.screen.height;
+    let height = (h as f32 /2.0).ceil() as u32;
+    let max_iterations = config.shape.iterations;
+    let mut img = image::RgbImage::new(w as u32, h as u32);
+    // This is the kernel that we will be executed by each worker:
+    //     buffer: output buffer where to store the number of iterations before the f(c) diverges.
+    //             Accessing this memory is expensive, so it should be used sparingly. Since the
+    //             output buffer is 1-dimensional, we will need to flatten the output by mapping
+    //             a pixel at coordinates (r, c) to (r * width + c).
+    //     width: image width.
+    //     height: image height.
+    //     max_iterations: maximum number of iterations of f(c).
+    let src = r#"
+        __kernel void julia(__global uint* buffer, uint width, uint height, uint max_iterations, float cx, float cy, float rmul, float gmul, float bmul) {
+            // Get the x coordinate of this worker. We can get x and y coordinates because the kernel
+            // operates over a 2-dimensional data structure, as specified in the Rust code below.
+            int x = get_global_id(0);
+            // Get the y coordinate of this worker.
+            int y = get_global_id(1);
+            // The code below is an almost line-by-line port of the naive implementation, which has
+            // been optimized to have only 3 multiplications in the inner loop.
+            float zx = ((float)x / width - 0.5) * 3.8;
+            float zy = ((float)y / height) * 3.8 * 0.5;
+            float _zx = 0.0;
+            float _zy = 0.0;
+            float zx2 = zx * zx;
+            float zy2 = zy * zy;
+            uint iteration = 0;
+            float smooth = 0.0;
+            while (((zx2 + zy2) <= 4.0) && (iteration < max_iterations)) {
+                zy = (zx + zx) * zy + cy;
+                zx = zx2 - zy2 + cx;
+                zx2 = zx * zx;
+                zy2 = zy * zy;
+                iteration = iteration + 1;
+            }
+            if (iteration < max_iterations) {
+                zy = (zx + zx) * zy + cy;
+                zx = zx2 - zy2 + cx;
+                zx2 = zx * zx;
+                zy2 = zy * zy;
+
+                zy = (zx + zx) * zy + cy;
+                zx = zx2 - zy2 + cx;
+                zx2 = zx * zx;
+                zy2 = zy * zy;
+
+                zy = (zx + zx) * zy + cy;
+                zx = zx2 - zy2 + cx;
+                zx2 = zx * zx;
+                zy2 = zy * zy;
+
+                iteration = iteration + 3;
+                float onedivbylntwo = 1.44269504089;
+        
+                float znorm = sqrt(zx2+zy2);
+                smooth = (float)iteration + 1.0 - log(log(znorm)) * onedivbylntwo;
+                //smooth = convert_float(iteration);
+            }
+            // Store the number of iterations computed by this worker.
+            uint red = (uint)convert_uchar(sin(0.1 * smooth * rmul)*255.0);
+            uint green = (uint)convert_uchar(sin(0.1 * smooth * gmul)*255.0);
+            uint blue = (uint)convert_uchar(sin(0.1 * smooth * bmul)*255.0);
+
+            buffer[width * y + x] = (red << 16) | (green << 8) | blue;
+        }
+    "#;
+    // Build an OpenCL context, make it run the OpenCL C code defined above, and set the
+    // data structure to operate on as a 2-dimensional w by h structure.
+    let pro_que = ocl::ProQue::builder().src(src).dims((w, height)).build().unwrap();
+    // Let buffer be the output buffer accessible by workers. This memory lives on the
+    // hardware accelerator (e.g.: the GPU).
+    let buffer = pro_que.create_buffer::<u32>().unwrap();
+    //let buffer = ocl::Buffer::builder().len(w*height*3).build();
+    // Build the OpenCL program, make it run the kernel called `mandelbrot` and bind actual
+    // values to the arguments of `mandelbrot`.
+    let kernel = pro_que
+        .kernel_builder("julia")
+        .arg(&buffer)
+        .arg(w)
+        .arg(height)
+        .arg(max_iterations as u32)
+        .arg(seed_coordinate.re as f32)
+        .arg(seed_coordinate.im as f32)
+        .arg(rmul as f32)
+        .arg(gmul as f32)
+        .arg(bmul as f32)
+        .build()
+        .unwrap();
+    // Run the OpenCL kernel
+    unsafe { kernel.enq().unwrap() };
+    let mut vec = vec![0u32; buffer.len()];
+    // Copy the OpenCL buffer back to a traditional Vec.
+    buffer.read(&mut vec).enq().unwrap();
+    for i in 0..buffer.len() {
+        let x = i as u32 % w;
+        let y = i as u32 / w;
+        let val = vec[i];
+        let rgb = [
+            ((val >> 16) & 0xff) as u8,
+            ((val >> 8) & 0xff) as u8,
+            ((val >> 0) & 0xff) as u8
+        ];
+        let color = image::Rgb(rgb);
+        img.put_pixel(x, y+(h >> 1), color);
+        img.put_pixel(h - x - 1, height - y - 1, color);
+    }
+    let path = format!("{}.png", name);
+    img.save(path).unwrap();
 }
 
