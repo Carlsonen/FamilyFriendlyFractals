@@ -19,6 +19,7 @@ use configstructs::Screen;
 use configstructs::Shape;
 
 use std::path::Path;
+mod wave_function;
 
 fn print_available_commands() {
     println!("========================================================");
@@ -33,6 +34,7 @@ fn print_available_commands() {
     println!("orbit set <path>                 | name sample image in ./sample/");
     println!("orbit make <name>                | generates fractal from image");
     println!("orbit r                          | generates random from image");
+    println!("orbit color <value>              | set hue difference (0-359)");
     println!();
     println!("gpu make <name>                  | generates fractal on GPU");
     println!("gpu r                            | generates random on GPU");
@@ -47,7 +49,8 @@ fn main() {
         Shape::default(),               // how messy the fractal is basically
         Screen::default(),              // fractal height is always same
     );
-    let mut orbit_path: String = "bear.ico".to_string();
+    let mut orbit_path: String = "amogus.png".to_string();
+    let mut orbit_hue_diff = 50.0;
     print_available_commands();
     loop {
         println!();
@@ -72,6 +75,13 @@ fn main() {
                 .collect();
             randomish_fractal(&name, &seed, &config);
             println!("=> Fractal \"{}\" saved!", seed);
+        }
+        else if command == "wave" {
+            //println!("input name: ");
+            let name: String = read!();
+            let mut wave = wave_function::WaveWorld::new(128, 128, &name);
+            wave.evaluate();
+            wave.capture();
         }
         else if command == "color" {
             //println!("input color: ");
@@ -115,7 +125,7 @@ fn main() {
             let func: String = read!();
             if func == "make" {
                 let name: String = read!();
-                julia_orbit_trap(&name, &name, &config, &orbit_path);
+                julia_orbit_trap(&name, &name, &config, &orbit_path, orbit_hue_diff);
                 println!("=> Fractal \"{}\" saved!", name);
                 
             }
@@ -126,7 +136,7 @@ fn main() {
                 .take(5)
                 .map(char::from)
                 .collect();
-                julia_orbit_trap(&name, &seed, &config, &orbit_path);
+                julia_orbit_trap(&name, &seed, &config, &orbit_path, orbit_hue_diff);
                 println!("=> Fractal \"{}\" saved!", seed);
             }
             else if func == "set" {
@@ -139,6 +149,13 @@ fn main() {
                 else {
                     println!("=> the file \"{}\" does not exist", path);
                 }
+            }
+            else if func == "color" { 
+                let mut c: u32 = read!();
+                c = u32::max(c, 0);
+                c = u32::min(c, 359);
+                orbit_hue_diff = c as f32;
+                println!("=> color diff set to {}", c);
             }
             else {
                 println!("=> invalid command");
@@ -189,7 +206,7 @@ fn randomish_fractal(name: &String, seed: &String, config: &Config) {
     let bmul: f64 = rng.gen_range(config.coloring.min..config.coloring.max);
 
     let mut img: RgbImage = ImageBuffer::new(width as u32, height as u32);
-    let zoom = 3.8;
+    let zoom = 0.8;
     let aspect_ratio = width as f64 / height as f64;
     for x in 0..(width as f32 /2.0).ceil() as u32 {
         for y in 0..height {
@@ -230,7 +247,7 @@ fn julia(coordinate: Complex<f64>, max_iterations: i32, seed: Complex<f64>) -> f
     }
     return iteration as f64;
 }
-fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String) {
+fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String, hue_diff: f32) {
     let mut hasher = DefaultHasher::new();
     seed.hash(&mut hasher);
     let hash_val = hasher.finish();
@@ -240,9 +257,10 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
     let height = config.screen.height;
 
     let mut img: RgbaImage = RgbaImage::new(width as u32, height as u32);
+    use colors_transform::{Hsl, Rgb, Color};
     let sample_pic = open(format!("sample/{}", path)).unwrap().into_rgba8();
     
-    let zoom = 3.8;
+    let zoom = 2.8;
     let aspect_ratio = width as f64 / height as f64;
 
     let angle: f64 = rng.gen_range(-3.14..3.14);
@@ -257,18 +275,26 @@ fn julia_orbit_trap(name: &String, seed: &String, config: &Config, path: &String
             
             let s = Complex::new(0.0, 0.0);
             let mut pixel = image::Rgba([0,0,0,0]);
-            for _ in 0..1000 {
+            for i in 0..1000 {
                 if z.norm_sqr() > 4.0 {break;}
                 z = z*z+c;
-                let mut p = 0.4*(z+s);
+                let mut p = 4.0*(z+s);
                 if p.re > 0.0 && p.im > 0.0 && p.re < 1.0 && p.im < 1.0 {
                     p.re *= (sample_pic.width()-1) as f64;
                     p.im *= (sample_pic.height()-1) as f64;
                     pixel = *sample_pic.get_pixel((p.re ) as u32, p.im as u32);
+                    if pixel[3] != 0 {
+                        let mut rgb = Rgb::from(pixel[0] as f32, pixel[1] as f32, pixel[2] as f32);
+                        rgb = rgb.adjust_hue((i as f32 * hue_diff) % 360.0);
+                        pixel = image::Rgba([
+                        rgb.get_red() as u8, 
+                        rgb.get_green() as u8,
+                        rgb.get_blue() as u8, 255]);
+                    }
                 }
                 if pixel[3] != 0 {break;}
             }
-            if pixel[3] == 0 {pixel = image::Rgba([0,0,16,255]);}
+            if pixel[3] == 0 {pixel = image::Rgba([255,255,255,255]);}
             img.put_pixel(x as u32, y as u32, pixel);
             img.put_pixel(width - x - 1, height - y - 1, pixel);
         }
@@ -302,8 +328,6 @@ fn mandel(coordinate: Complex<f64>, max_iterations: i32) -> i32 {
     }
     return iteration;
 }
-
-
 
 fn opencl_julia(name: &String, seed: &String, config: &Config) {
     let mut hasher = DefaultHasher::new();
