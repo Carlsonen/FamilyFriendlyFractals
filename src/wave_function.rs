@@ -3,6 +3,7 @@ use image::{ImageBuffer, RgbImage};
 use std::hash::{Hash, Hasher};
 use rand::prelude::*;
 use rand_pcg::Pcg64;
+use family_friendly_fractals::shit::*;
 
 pub fn noise(w: u32, h: u32) {
     let mut img: RgbImage = ImageBuffer::new(w, h);
@@ -16,7 +17,8 @@ pub fn noise(w: u32, h: u32) {
             img.put_pixel(x, y, image::Rgb([r,g,b]));
         }
     }
-    img.save("noise.png");
+    make_folder(&String::from("fractals"));
+    img.save("fractals/noise.png").unwrap();
 }
 
 pub struct WaveWorld {
@@ -39,7 +41,6 @@ impl WaveWorld {
     pub fn evaluate(&mut self) {
         self.collapse(self.width / 2, self.height / 2);
         for x in 0..self.width {
-            if x % 16 == 0 {println!("{}", x);}
             for y in 0..self.height {
                 self.collapse(x, y);
             }
@@ -57,7 +58,8 @@ impl WaveWorld {
                 img.put_pixel(x, y, image::Rgb([c.get_red() as u8, c.get_green() as u8, c.get_blue() as u8]));
             }
         }
-        img.save("wave.png");
+        make_folder(&String::from("fractals"));
+        img.save("fractals/wave.png").unwrap();
     }
 
     fn collapse(&mut self, x: u32, y: u32) {
