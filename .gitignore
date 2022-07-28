@@ -2,6 +2,7 @@
 # compiled build
 target/
 fractals/
+sample/
 
 Cargo.lock
 
