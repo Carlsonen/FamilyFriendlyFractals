@@ -5,6 +5,9 @@ mod wave_function;
 use family_friendly_fractals::coloring::*;
 use family_friendly_fractals::fractal_engine::*;
 
+mod img_approx;
+use img_approx::*;
+
 fn print_available_commands() {
     use owo_colors::OwoColorize;
     println!("========================================================");
@@ -21,8 +24,7 @@ fn print_available_commands() {
     println!("orbit r                          | generates random from image");
     println!("orbit hue <value>                | set hue difference (0-359)");
     println!();
-    println!("gpu make <name>                  | generates fractal on GPU");
-    println!("gpu r                            | generates random on GPU");
+    println!("circle <source name>             | approximate image using circles");
     println!();
     println!("stop                             | stops the program");
     println!("========================================================");
@@ -68,6 +70,10 @@ fn main() {
                 ImgType::ImgFractal => fractal_engine.gen_image_fractal(&String::from("random")),
             }
             println!("=> Fractal \"{}\" saved!", seed);
+        } else if command == "circle" {
+            let pic: String = read!();
+            let path = format!("sample/{}", pic);
+            img_approx::circles(&path);
         } else if command == "set" {
             let func: String = read!();
             match func.as_str() {
